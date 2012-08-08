@@ -1,0 +1,3 @@
+Megacyte	2	0	0
+Mexallon	104	5	2
+Pyerite	4	0	0	
