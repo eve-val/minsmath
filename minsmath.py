@@ -34,7 +34,7 @@ def getreprocess():
     for line in raw:
         foo = line.split('\t')
         data.append(foo[0])
-        data.append(int(foo[1]))
+        data.append(int(foo[1].replace(',','')))
     f.close()
     return(data)
 
