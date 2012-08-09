@@ -16,7 +16,7 @@ def addm(data,prices):
 
 def getprices():
     ''' reads in prices from a text file. TODO: replace w/eve-central'''
-    f = open('prices.txt')
+    f = open('prices.csv')
     raw = f.readlines()
     pricesraw = []
     for line in raw:
