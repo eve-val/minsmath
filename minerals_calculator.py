@@ -33,7 +33,7 @@ class minerals_calculator(object):
 
     def get_tables(self):
         print('please wait. This program will now suck ALL the memory.')
-        ins = self.load_yaml('invTypesFinal.yaml')
+        ins = self.load_yaml('invTypes.yaml')
         self.item_types = ins['data']
         print('load 1/5 complete.')
         ins = self.load_yaml('mapSolarSystems.yaml')
