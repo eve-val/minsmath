@@ -175,7 +175,7 @@ class minerals_calculator(object):
         for item in refine_assets:
             repro = self.get_repro_results(item['item_type_id'])
             refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item['quantity']
-            sell_price = evecentral.find_best_price(item['item_type_id'],region)
+            sell_price = evecentral.find_best_price(item['item_type_id'],region)*item['quantity']
             if(refine_price > sell_price):
                 verdict = "refine"
                 delta = refine_price - sell_price
