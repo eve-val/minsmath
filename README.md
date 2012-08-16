@@ -13,3 +13,4 @@ To implement:
 * GUI
 * CLI with arguments passed in
 * A version with faster startup
+* Look inside _all_ the containers
