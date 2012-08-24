@@ -25,7 +25,6 @@ class minerals_calculator(object):
         self.eve = evelink.eve.EVE()
         charid = self.eve.character_id_from_name(charname)
         self.char = evelink.char.Char(char_id = charid, api= self.api)
-        self.assets = self.char.assets()
 
     def get_charinfo(self):
         keyid = int(raw_input('What is your api key id? \n'))
@@ -36,9 +35,6 @@ class minerals_calculator(object):
         out.close()
         return [keyid,vcode,charname]
 
-
-    def refresh_assets(self):
-        self.assets = self.char.assets()
 
     def get_tables(self):
         self.nullsec_stations = self.eve.conquerable_stations()
@@ -67,57 +63,8 @@ class minerals_calculator(object):
             result = [x[0] for x in result]
         return result
 
-    def get_assets_at_station(self,name):
-        sysid = self.get_value('system_id','solar_systems','system_name',name)[0]
-        staids = self.get_value('id','stations','system_id',sysid)
-        system_assets = [] #list of assets at stations.
-        asset_ids = [] #ids of stations with assets at them
-        for station in staids:
-            try:
-                system_assets.append(self.assets[station]['contents'])
-                asset_ids.append(station)
-            except KeyError: #KeyError means no assets were found at that station.
-                pass
-        if len(system_assets) == 0:
-            print('you appear not to have anything there!')
-            return(KEY_ERROR)
-        elif len(system_assets) == 1:
-            return(system_assets[0])
-        else:
-            i = 0
-            for sta in asset_ids:
-                print('[' + str(i) + '] \t' + self.get_value('name','stations','id',sta)[0])
-                i = i+1
-            result = int(raw_input('Which station did you mean?'))
-            return(system_assets[result])
-
-    def offer_containers(self,assets):
-        i = 1
-        has_containsers = False
-        containers = {}
-        for elem in assets:
-            try:
-                contents = elem['contents']
-                containers[i] = elem
-                has_containers = True
-            except KeyError:
-                pass
-        if has_containers == False:
-            return(None)
-        return(containers)
-
-    def get_refine_list(self,location):
-        refine_assets = self.get_assets_at_station(location)  
-        if(refine_assets == KEY_ERROR): return KEY_ERROR
-        containers = self.offer_containers(refine_assets)
-        if(containers != None):
-            print('Here are the available containers:')
-            print('[0]\tHangar')
-            for key in containers:
-                print('['+str(key)+']' + '\t' + self.get_value('type_name','inv_types','type_id',containers[key]['item_type_id'])[0])
-            selection = int(raw_input('Which container would you like to look in? \n'))
-            if(selection != 0):
-                refine_assets = containers[selection]['contents']
+    def get_refine_list(self,assets_file):
+        refine_assets = parse_assets(assets_file)
         return(refine_assets)
 
     def getprices(self):
@@ -134,9 +81,9 @@ class minerals_calculator(object):
     def print_refine(self,refine_assets,region):
         res = []
         for item in refine_assets:
-            repro = self.get_value('material_id,quantity','item_materials','type_id',item['item_type_id'])
-            refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item['quantity']
-            sell_price = evecentral.find_best_price(item['item_type_id'],region)*item['quantity']
+            repro = self.get_value('material_id,quantity','item_materials','type_id',item[0])
+            refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item[1]
+            sell_price = evecentral.find_best_price(item[0],region)*item[1]
             if(refine_price > sell_price):
                 verdict = "refine"
                 delta = refine_price - sell_price
@@ -155,12 +102,23 @@ def addm(data,prices,refine,tax):
         res = res + prices[item[0]]*int(item[1]*refine*(1-tax))
     return(res)
 
+def parse_assets(path_to_file):
+    f = open(path_to_file)
+    assets = f.readlines()
+    assets = [[y[0],get_qty(y[1])] for y in [x.split('\t') for x in f.readlines()]]
+
+def get_qty(ins):
+    try:
+        qty = int(ins)
+    except ValueError:
+        qty = 1
+    return qty
 
 if __name__ == '__main__':
     calc = minerals_calculator()
     while True:
         prices = calc.getprices()
-        location = raw_input('Which system are your assets in? Please type the full name. \n')
+        location = raw_input('Please select your assets and copy, then paste the results into a text file. What is its name?\n')
         region = calc.get_value('region_id','solar_systems','system_name',location)[0]
         calc.refresh_assets()
         refinery = float(raw_input('What is your net refining yield in percent? \n'))
