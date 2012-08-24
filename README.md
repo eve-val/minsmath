@@ -13,3 +13,4 @@ To use:
 To implement:
 * GUI
 * CLI with arguments passed in
+* Look inside _all_ the containers
