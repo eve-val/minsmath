@@ -1,19 +1,19 @@
-import evelink.api
-import evelink.eve
-import evelink.char
-import evecentral
-from database import database
-from docopt import docopt
-
-KEY_ERROR = -1
-
-'''Usage:
+"""usage: 
     minerals_calculator.py
     minerals_calculator.py <location> <net_refine_yield> <refinery_tax> [--file <assets>]
     minerals_calculator.py --file <assets>
 
---file: indicate the location on disk of a file containing your assets, copied from the EVE client.'''
+--file: indicate the location on disk of a file containing your assets, copied from the EVE client."""
 
+import evelink.api
+import evelink.eve
+import evelink.char
+import evecentral
+import sys
+from database import database
+from docopt import docopt
+
+KEY_ERROR = -1
 
 class minerals_calculator(object):
 
@@ -154,7 +154,7 @@ class minerals_calculator(object):
             else:
                 verdict = "sell"
                 delta = sell_price - refine_price
-            res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item[1]),str(delta)])
+            res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item['quantity']),str(delta)])
         res.sort()
         colsize = biggest_name(res)
         pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:7s} {3:5s}'
@@ -186,7 +186,10 @@ def addm(data,prices,refine,tax):
     ''' takes a list of tuples of (minerals,amount) and adds them, taking into account tax etc '''
     res = 0
     for item in data:
-        res = res + prices[item[0]]*int(item[1]*refine*(1-tax))
+        try:
+            res = res + prices[item[0]]*int(item[1]*refine*(1-tax))
+        except KeyError: #this error for items which refine into t2 stuff
+            return 0
     return(res)
 
 def biggest_name(results):
@@ -210,7 +213,7 @@ def get_qty(ins):
 
 if __name__ == '__main__':
     
-    arguments = docopt('__doc__', argv=sys.argv[1:])
+    arguments = docopt(__doc__, argv=sys.argv[1:])
     calc = minerals_calculator()
     prices = calc.getprices()
     
@@ -220,12 +223,15 @@ if __name__ == '__main__':
         standings = float(raw_input('And what is the refinery tax in percent? \n'))
     else:
         location = arguments['<location>']
-        refinery = float(arguments['<net_refine_yield>'])
-        standings = float(arguments['<refinery_tax>'])
+        refinery = arguments['<net_refine_yield>']
+        standings = arguments['<refinery_tax>']
+    if(type(refinery) == str and type(standings) == str):
+        refinery = float(refinery)
+        standings = float(standings)
 
     region = calc.get_value('region_id','solar_systems','system_name',location)[0]
-    if arguments['--file'] == False
-        refine_assets = calc.get_refine_list()
+    if arguments['--file'] == False:
+        refine_assets = calc.get_refine_list(location)
         if(refine_assets != KEY_ERROR):
             calc.print_refine(refine_assets,region)
     else:
