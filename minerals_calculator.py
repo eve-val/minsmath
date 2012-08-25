@@ -79,21 +79,25 @@ class minerals_calculator(object):
         return(prices)
      
     def print_refine(self,refine_assets,region):
+        print('we got here, and refine_assets has a length of '+str(len(refine_assets)))
         res = []
         for item in refine_assets:
-            repro = self.get_value('material_id,quantity','item_materials','type_id',item[0])
+            itemid = self.get_value('type_id','inv_types','type_name',item[0])[0]
+            repro = self.get_value('material_id,quantity','item_materials','type_id',itemid)
             refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item[1]
-            sell_price = evecentral.find_best_price(item[0],region)*item[1]
+            sell_price = evecentral.find_best_price(itemid,region)*item[1]
             if(refine_price > sell_price):
                 verdict = "refine"
                 delta = refine_price - sell_price
             else:
                 verdict = "sell"
                 delta = sell_price - refine_price
-            res.append(str(self.get_value('type_name','inv_types','type_id',item['item_type_id'])[0]) + '\t' + verdict + '\t Refine price per: '+str(refine_price/item['quantity']) +'\t Difference: ' + str(delta))
+            res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item[1]),str(delta)])
         res.sort()
+        colsize = biggest_name(res)
+        pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:7s} {3:5s}'
         for item in res:
-            print(item)
+            print(pattern.format(item[0],item[1],item[2],item[3]))
         
 def addm(data,prices,refine,tax):
     ''' takes a list of tuples of (minerals,amount) and adds them, taking into account tax etc '''
@@ -102,10 +106,17 @@ def addm(data,prices,refine,tax):
         res = res + prices[item[0]]*int(item[1]*refine*(1-tax))
     return(res)
 
+def biggest_name(results):
+    biggest = 0
+    for item in results:
+        if biggest < len(item[0]):
+            biggest = len(item[0])
+    return biggest
+
 def parse_assets(path_to_file):
     f = open(path_to_file)
-    assets = f.readlines()
     assets = [[y[0],get_qty(y[1])] for y in [x.split('\t') for x in f.readlines()]]
+    return assets
 
 def get_qty(ins):
     try:
@@ -118,11 +129,11 @@ if __name__ == '__main__':
     calc = minerals_calculator()
     while True:
         prices = calc.getprices()
-        location = raw_input('Please select your assets and copy, then paste the results into a text file. What is its name?\n')
+        assetfile = raw_input('Please select your assets and copy, then paste the results into a text file. What is its name?\n')
+        location = raw_input('and where are you located?')
         region = calc.get_value('region_id','solar_systems','system_name',location)[0]
-        calc.refresh_assets()
         refinery = float(raw_input('What is your net refining yield in percent? \n'))
         standings = float(raw_input('And what is the refinery tax in percent? \n'))
-        refine_assets = calc.get_refine_list(location)
+        refine_assets = calc.get_refine_list(assetfile)
         if(refine_assets != KEY_ERROR):
             calc.print_refine(refine_assets,region)
