@@ -1,8 +1,17 @@
+"""usage: 
+    minerals_calculator.py
+    minerals_calculator.py <location> <net_refine_yield> <refinery_tax> [--file <assets>]
+    minerals_calculator.py --file <assets>
+
+--file: indicate the location on disk of a file containing your assets, copied from the EVE client."""
+
 import evelink.api
 import evelink.eve
 import evelink.char
 import evecentral
+import sys
 from database import database
+from docopt import docopt
 
 KEY_ERROR = -1
 
@@ -36,9 +45,6 @@ class minerals_calculator(object):
         out.close()
         return [keyid,vcode,charname]
 
-
-    def refresh_assets(self):
-        self.assets = self.char.assets()
 
     def get_tables(self):
         self.nullsec_stations = self.eve.conquerable_stations()
@@ -120,6 +126,10 @@ class minerals_calculator(object):
                 refine_assets = containers[selection]['contents']
         return(refine_assets)
 
+    def get_file_refine_list(self,assets_file):
+        refine_assets = parse_assets(assets_file)
+        return(refine_assets)
+
     def getprices(self):
         ''' reads in prices from a text file. TODO: replace w/eve-central'''
         f = open('prices.csv')
@@ -130,11 +140,12 @@ class minerals_calculator(object):
             pricesraw.append((self.get_value('type_id','inv_types','type_name',foo[0])[0],float(foo[1])))
         prices = dict(pricesraw)
         return(prices)
-     
+    
     def print_refine(self,refine_assets,region):
         res = []
         for item in refine_assets:
-            repro = self.get_value('material_id,quantity','item_materials','type_id',item['item_type_id'])
+            itemid = item['item_type_id']
+            repro = self.get_value('material_id,quantity','item_materials','type_id',itemid)
             refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item['quantity']
             sell_price = evecentral.find_best_price(item['item_type_id'],region)*item['quantity']
             if(refine_price > sell_price):
@@ -143,31 +154,89 @@ class minerals_calculator(object):
             else:
                 verdict = "sell"
                 delta = sell_price - refine_price
-            res.append(str(self.get_value('type_name','inv_types','type_id',item['item_type_id'])[0]) + '\t' + verdict + '\t Refine price per: '+str(refine_price/item['quantity']) +'\t Difference: ' + str(delta))
+            res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item['quantity']),str(delta)])
         res.sort()
+        colsize = biggest_name(res)
+        pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:7s} {3:5s}'
         for item in res:
-            print(item)
+            print(pattern.format(item[0],item[1],item[2],item[3]))
+
+    def print_file_refine(self,refine_assets,region):
+        print('we got here, and refine_assets has a length of '+str(len(refine_assets)))
+        res = []
+        for item in refine_assets:
+            itemid = self.get_value('type_id','inv_types','type_name',item[0])[0]
+            repro = self.get_value('material_id,quantity','item_materials','type_id',itemid)
+            refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item[1]
+            sell_price = evecentral.find_best_price(itemid,region)*item[1]
+            if(refine_price > sell_price):
+                verdict = "refine"
+                delta = refine_price - sell_price
+            else:
+                verdict = "sell"
+                delta = sell_price - refine_price
+            res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item[1]),str(delta)])
+        res.sort()
+        colsize = biggest_name(res)
+        pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:7s} {3:5s}'
+        for item in res:
+            print(pattern.format(item[0],item[1],item[2],item[3]))
         
 def addm(data,prices,refine,tax):
     ''' takes a list of tuples of (minerals,amount) and adds them, taking into account tax etc '''
     res = 0
     for item in data:
         try:
-	    res = res + prices[item[0]]*int(item[1]*refine*(1-tax))
+            res = res + prices[item[0]]*int(item[1]*refine*(1-tax))
         except KeyError: #this error for items which refine into t2 stuff
             return 0
-    return res
+    return(res)
 
+def biggest_name(results):
+    biggest = 0
+    for item in results:
+        if biggest < len(item[0]):
+            biggest = len(item[0])
+    return biggest
+
+def parse_assets(path_to_file):
+    f = open(path_to_file)
+    assets = [[y[0],get_qty(y[1])] for y in [x.split('\t') for x in f.readlines()]]
+    return assets
+
+def get_qty(ins):
+    try:
+        qty = int(ins)
+    except ValueError:
+        qty = 1
+    return qty
 
 if __name__ == '__main__':
+    
+    arguments = docopt(__doc__, argv=sys.argv[1:])
     calc = minerals_calculator()
-    while True:
-        prices = calc.getprices()
-        location = raw_input('Which system are your assets in? Please type the full name. \n')
-        region = calc.get_value('region_id','solar_systems','system_name',location)[0]
-        calc.refresh_assets()
+    prices = calc.getprices()
+    
+    if arguments['<location>'] == False:
+        location = raw_input('Where are you located?\n')
         refinery = float(raw_input('What is your net refining yield in percent? \n'))
         standings = float(raw_input('And what is the refinery tax in percent? \n'))
+    else:
+        location = arguments['<location>']
+        refinery = arguments['<net_refine_yield>']
+        standings = arguments['<refinery_tax>']
+    if(type(refinery) == str and type(standings) == str):
+        refinery = float(refinery)
+        standings = float(standings)
+
+    region = calc.get_value('region_id','solar_systems','system_name',location)[0]
+    if arguments['--file'] == False:
         refine_assets = calc.get_refine_list(location)
         if(refine_assets != KEY_ERROR):
             calc.print_refine(refine_assets,region)
+    else:
+        assetfile = arguments['--file']
+        refine_assets = calc.get_file_refine_list(assetfile)
+        if(refine_assets != KEY_ERROR):
+            calc.print_file_refine(refine_assets,region)
+
