@@ -215,19 +215,15 @@ if __name__ == '__main__':
     prices = calc.getprices()
     
     if arguments['<location>'] == False:
-        location = raw_input('and where are you located?\n')
-    else:
-        location = arguments['<location>']
-    region = calc.get_value('region_id','solar_systems','system_name',location)[0]
-    if arguments['<net_refine_yield>'] == False:
+        location = raw_input('Where are you located?\n')
         refinery = float(raw_input('What is your net refining yield in percent? \n'))
-    else:
-        refinery = float(arguments['<net_refine_yield>'])
-    if arguments['<refinery_tax>'] == False:
         standings = float(raw_input('And what is the refinery tax in percent? \n'))
     else:
-        standings = arguments['<refinery_tax>']
+        location = arguments['<location>']
+        refinery = float(arguments['<net_refine_yield>'])
+        standings = float(arguments['<refinery_tax>'])
 
+    region = calc.get_value('region_id','solar_systems','system_name',location)[0]
     if arguments['--file'] == False
         refine_assets = calc.get_refine_list()
         if(refine_assets != KEY_ERROR):
