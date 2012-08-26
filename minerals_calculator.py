@@ -5,9 +5,9 @@
 
 --file: indicate the location on disk of a file containing your assets, copied from the EVE client."""
 
-import evelink/evelink.api
-import evelink/evelink.eve
-import evelink/evelink.char
+import evelink.api
+import evelink.eve
+import evelink.char
 import evecentral
 import sys
 from database import database
