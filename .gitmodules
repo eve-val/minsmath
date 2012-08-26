@@ -1,0 +1,3 @@
+[submodule "evelink-api"]
+	path = evelink-api
+	url = https://github.com/eve-val/evelink
