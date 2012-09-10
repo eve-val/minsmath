@@ -162,7 +162,6 @@ class minerals_calculator(object):
             print(pattern.format(item[0],item[1],item[2],item[3]))
 
     def print_file_refine(self,refine_assets,region):
-        print('we got here, and refine_assets has a length of '+str(len(refine_assets)))
         res = []
         for item in refine_assets:
             itemid = self.get_value('type_id','inv_types','type_name',item[0])[0]
@@ -235,7 +234,7 @@ if __name__ == '__main__':
         if(refine_assets != KEY_ERROR):
             calc.print_refine(refine_assets,region)
     else:
-        assetfile = arguments['--file']
+        assetfile = arguments['<assets>']
         refine_assets = calc.get_file_refine_list(assetfile)
         if(refine_assets != KEY_ERROR):
             calc.print_file_refine(refine_assets,region)
