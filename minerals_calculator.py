@@ -130,19 +130,19 @@ class minerals_calculator(object):
         refine_assets = parse_assets(assets_file)
         return(refine_assets)
 
-    def getprices(self):
+    def get_prices(self,system):
         ''' reads in prices from a text file. TODO: replace w/eve-central'''
-        f = open('prices.csv')
-        raw = f.readlines()
+        minerals = ['Isogen','Megacyte','Mexallon','Nocxium','Pyerite','Tritanium','Zydrine']
         pricesraw = []
-        for line in raw:
-            foo = line.split(',')
-            pricesraw.append((self.get_value('type_id','inv_types','type_name',foo[0])[0],float(foo[1])))
+        for item in minerals:
+            typeid = self.get_value('type_id','inv_types','type_name',item)[0]
+            pricesraw.append((typeid,evecentral.find_sys_price(typeid,system)))
         prices = dict(pricesraw)
         return(prices)
     
     def print_refine(self,refine_assets,region):
         res = []
+        total = 0.0;
         for item in refine_assets:
             itemid = item['item_type_id']
             repro = self.get_value('material_id,quantity','item_materials','type_id',itemid)
@@ -151,18 +151,22 @@ class minerals_calculator(object):
             if(refine_price > sell_price):
                 verdict = "refine"
                 delta = refine_price - sell_price
+                total = total + refine_price
             else:
                 verdict = "sell"
                 delta = sell_price - refine_price
+                total = total + sell_price
             res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item['quantity']),str(delta)])
         res.sort()
         colsize = biggest_name(res)
         pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:7s} {3:5s}'
         for item in res:
             print(pattern.format(item[0],item[1],item[2],item[3]))
+        print("-------------- \n Total: "+str(total))
 
     def print_file_refine(self,refine_assets,region):
         res = []
+        total = 0.0;
         for item in refine_assets:
             itemid = self.get_value('type_id','inv_types','type_name',item[0])[0]
             repro = self.get_value('material_id,quantity','item_materials','type_id',itemid)
@@ -171,16 +175,19 @@ class minerals_calculator(object):
             if(refine_price > sell_price):
                 verdict = "refine"
                 delta = refine_price - sell_price
+                total = total + refine_price
             else:
                 verdict = "sell"
                 delta = sell_price - refine_price
+                total = total + sell_price
             res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item[1]),str(delta)])
         res.sort()
         colsize = biggest_name(res)
         pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:7s} {3:5s}'
         for item in res:
             print(pattern.format(item[0],item[1],item[2],item[3]))
-        
+        print("-------------- \n Total: "+str(total))
+
 def addm(data,prices,refine,tax):
     ''' takes a list of tuples of (minerals,amount) and adds them, taking into account tax etc '''
     res = 0
@@ -214,7 +221,6 @@ if __name__ == '__main__':
     
     arguments = docopt(__doc__, argv=sys.argv[1:])
     calc = minerals_calculator()
-    prices = calc.getprices()
     
     if arguments['<location>'] == False:
         location = raw_input('Where are you located?\n')
@@ -228,7 +234,10 @@ if __name__ == '__main__':
         refinery = float(refinery)
         standings = float(standings)
 
+    system = calc.get_value('system_id','solar_systems','system_name',location)[0]
     region = calc.get_value('region_id','solar_systems','system_name',location)[0]
+    prices = calc.get_prices(system)
+
     if arguments['--file'] == False:
         refine_assets = calc.get_refine_list(location)
         if(refine_assets != KEY_ERROR):
