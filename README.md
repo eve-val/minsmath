@@ -16,3 +16,5 @@ To use:
         minerals_calculator.py --file <assets>
 
         --file: indicate the location on disk of a file containing your assets, copied from the EVE client.    
+
+PSA: if using the file option, do not copy and paste your assets into vim with :set expandtab. Vim will remove the tabs, and the script will not work.
