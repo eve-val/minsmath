@@ -6,10 +6,10 @@ def db_setup():
     c = conn.cursor()
 
     #these are all the relevant fields from invTypes; if more are required they can be added
-    c.execute('CREATE TABLE inv_types (type_id int, group_id int, type_name text)') 
+    c.execute('CREATE TABLE inv_types (type_id int, group_id int, type_name text, portion_size int)') 
     temp = load_yaml('invTypes.yaml')['data']
-    ins = [(x['typeID'],x['groupID'],x['typeName']) for x in temp]
-    c.executemany('INSERT INTO inv_types VALUES (?,?,?)', ins)
+    ins = [(x['typeID'],x['groupID'],x['typeName'],x['portionSize']) for x in temp]
+    c.executemany('INSERT INTO inv_types VALUES (?,?,?,?)', ins)
     
     #solar systems table
     c.execute('CREATE TABLE solar_systems (region_id int, system_id int, system_name text)')
