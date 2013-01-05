@@ -5,6 +5,7 @@
 
 --file: indicate the location on disk of a file containing your assets, copied from the EVE client."""
 
+from __future__ import division
 import evelink.api
 import evelink.eve
 import evelink.char
@@ -146,47 +147,69 @@ class minerals_calculator(object):
         for item in refine_assets:
             itemid = item['item_type_id']
             repro = self.get_value('material_id,quantity','item_materials','type_id',itemid)
-            refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item['quantity']
+            if len(repro) > 0:
+                refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item['quantity']/self.get_value('portion_size','inv_types','type_id',itemid)[0]
+            else:
+                refine_price = 0
             sell_price = evecentral.find_best_price(item['item_type_id'],region)*item['quantity']
             if(refine_price > sell_price):
-                verdict = "refine"
-                delta = refine_price - sell_price
-                total = total + refine_price
+                verdict = 'refine'
+                buy_price = evecentral.find_sys_sell(itemid,system)
+                delta = ''
+                if refine_price*(1-0.97-1.5)/item['quantity'] > buy_price*(1-0.97):
+                    delta = 'Arbitrage'
+                total = total + refine_price*(1-0.97-1.5)
             else:
-                verdict = "sell"
-                delta = sell_price - refine_price
-                total = total + sell_price
-            res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item['quantity']),str(delta)])
+                verdict = 'sell'
+                delta = ''
+                total = total + sell_price*(1-0.97-1.5)
+            res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item[1]),delta])
         res.sort()
         colsize = biggest_name(res)
-        pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:7s} {3:5s}'
+        pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:10s} {3:1s}'
         for item in res:
             print(pattern.format(item[0],item[1],item[2],item[3]))
         print("-------------- \n Total: "+str(total))
 
     def print_file_refine(self,refine_assets,region):
         res = []
+        excl = []
         total = 0.0;
         for item in refine_assets:
-            itemid = self.get_value('type_id','inv_types','type_name',item[0])[0]
-            repro = self.get_value('material_id,quantity','item_materials','type_id',itemid)
-            refine_price = addm(repro,prices,refinery*0.01,standings*0.01)*item[1]
-            sell_price = evecentral.find_best_price(itemid,region)*item[1]
-            if(refine_price > sell_price):
-                verdict = "refine"
-                delta = refine_price - sell_price
-                total = total + refine_price
+            itemid = self.get_value('type_id','inv_types','type_name',item[0])
+            if(itemid != []):
+                itemid = itemid[0]
+                repro = self.get_value('material_id,quantity','item_materials','type_id',itemid)
+                if len(repro) > 0:
+                    refine_price = addm(repro,prices,refinery*0.01,standings*0.01)/self.get_value('portion_size','inv_types','type_id',itemid)[0]
+                else:
+                    refine_price = 0
+                sell_price = evecentral.find_best_price(itemid,region)
+                finalprice = 0
+                if(refine_price > sell_price):
+                    verdict = "refine"
+                    finalprice = refine_price
+                    buy_price = evecentral.find_sys_sell(itemid,system)
+                    delta = ''
+                    if refine_price*(1-0.97-1.5) > buy_price*(1-0.97):
+                        delta = 'Arbitrage'
+                    total = total + refine_price*item[1]
+                else:
+                    verdict = "sell"
+                    finalprice = sell_price
+                    delta = ''
+                    total = total + sell_price*item[1]
+                res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(finalprice),str(item[1])])
             else:
-                verdict = "sell"
-                delta = sell_price - refine_price
-                total = total + sell_price
-            res.append([self.get_value('type_name','inv_types','type_id',itemid)[0],verdict,str(refine_price/item[1]),str(delta)])
+                excl.append("Excluded "+item[0])
         res.sort()
         colsize = biggest_name(res)
-        pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:7s} {3:5s}'
+        pattern = '{0:'+str(colsize+3)+'s} {1:6s} {2:10s} {3:5s}'
         for item in res:
             print(pattern.format(item[0],item[1],item[2],item[3]))
         print("-------------- \n Total: "+str(total))
+        for item in excl:
+            print(item)
 
 def addm(data,prices,refine,tax):
     ''' takes a list of tuples of (minerals,amount) and adds them, taking into account tax etc '''
@@ -211,10 +234,14 @@ def parse_assets(path_to_file):
     return assets
 
 def get_qty(ins):
-    try:
-        qty = int(ins)
-    except ValueError:
+    if ins == '':
         qty = 1
+    else:
+        ins = ins.split(',')
+        qty = ''
+        for item in ins:
+            qty = qty + item
+        qty = int(qty)
     return qty
 
 if __name__ == '__main__':
